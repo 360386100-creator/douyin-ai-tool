@@ -1,0 +1,4 @@
+# 如果你有自定义域名，可以在这里填写
+# 例如：douyin-ai-tool.yourdomain.com
+# 注意：需要到域名服务商那里设置CNAME记录指向你的GitHub Pages地址
+# 如果不使用自定义域名，删除这个文件或保持空白
