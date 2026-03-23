@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>抖音带货 AI 视频提示词生成器</title>
+<style>
+  :root {
+    --primary: #FF3B5C;
+    --primary-dark: #E0264A;
+    --primary-light: #FF6B84;
+    --accent: #FE2C55;
+    --bg: #0F0F0F;
+    --surface: #1A1A1A;
+    --surface2: #242424;
+    --surface3: #2E2E2E;
+    --border: #3A3A3A;
+    --text: #F0F0F0;
+    --text2: #A0A0A0;
+    --text3: #606060;
+    --green: #25F4EE;
+    --yellow: #FFD700;
+    --purple: #B14FEB;
+    --blue: #3A86FF;
+    --success: #00D26A;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: linear-gradient(135deg, #1A0A0E 0%, #0F0F0F 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 0;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  .header-inner { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon { width: 40px; height: 40px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .logo-text { font-size: 18px; font-weight: 700; }
+  .logo-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .header-badge { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; font-size: 12px; color: var(--text2); }
+  .header-badge span { color: var(--primary); font-weight: 600; }
+
+  /* ── Layout ── */
+  .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; display: grid; grid-template-columns: 420px 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
+
+  /* ── Card ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+  .card-title { font-size: 14px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+  .card-title::before { content: ''; display: block; width: 3px; height: 14px; background: var(--primary); border-radius: 2px; }
+
+  /* ── Form ── */
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+  .label-required::after { content: ' *'; color: var(--primary); }
+  input[type="text"], textarea, select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 14px; color: var(--text);
+    font-size: 14px; font-family: inherit; transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+  input[type="text"]:focus, textarea:focus, select:focus {
+    border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255,59,92,0.15);
+  }
+  textarea { resize: vertical; min-height: 80px; }
+  select { cursor: pointer; }
+  select option { background: var(--surface2); }
+  .input-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* ── Tag Chips ── */
+  .chip-group { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .chip { padding: 4px 10px; background: var(--surface3); border: 1px solid var(--border); border-radius: 20px; font-size: 12px; color: var(--text2); cursor: pointer; transition: all 0.2s; user-select: none; }
+  .chip:hover { border-color: var(--primary-light); color: var(--primary-light); }
+  .chip.active { background: rgba(255,59,92,0.15); border-color: var(--primary); color: var(--primary); }
+
+  /* ── Slider ── */
+  .range-row { display: flex; align-items: center; gap: 12px; }
+  input[type="range"] { flex: 1; accent-color: var(--primary); }
+  .range-val { min-width: 48px; text-align: center; font-size: 13px; font-weight: 700; color: var(--primary); }
+
+  /* ── Section divider ── */
+  .section-divider { margin: 20px 0; border: none; border-top: 1px solid var(--border); }
+
+  /* ── Generate Button ── */
+  .btn-generate {
+    width: 100%; padding: 14px; background: linear-gradient(135deg, var(--primary) 0%, #FF6B2B 100%);
+    border: none; border-radius: var(--radius-sm); color: white; font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.03em;
+    box-shadow: 0 4px 16px rgba(255,59,92,0.35);
+  }
+  .btn-generate:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(255,59,92,0.5); }
+  .btn-generate:active { transform: translateY(0); }
+  .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* ── Output Area ── */
+  .output-panel { display: flex; flex-direction: column; gap: 16px; }
+  .tool-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tab-btn {
+    padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text2); font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .tab-btn:hover { border-color: var(--primary-light); color: var(--text); }
+  .tab-btn.active { background: rgba(255,59,92,0.15); border-color: var(--primary); color: var(--primary); }
+  .tab-badge { font-size: 10px; padding: 1px 6px; border-radius: 10px; margin-left: 4px; font-weight: 700; }
+  .tab-badge-cn { background: rgba(37,244,238,0.15); color: var(--green); }
+  .tab-badge-en { background: rgba(58,134,255,0.15); color: var(--blue); }
+
+  /* ── Prompt Output Box ── */
+  .prompt-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .prompt-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .prompt-scene-label { font-size: 12px; font-weight: 700; color: var(--text2); display: flex; align-items: center; gap: 6px; }
+  .scene-badge { display: inline-flex; align-items: center; gap: 4px; }
+  .scene-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .btn-copy {
+    display: flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 6px;
+    background: var(--surface3); border: 1px solid var(--border); color: var(--text2);
+    font-size: 12px; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-copy:hover { border-color: var(--success); color: var(--success); }
+  .btn-copy.copied { background: rgba(0,210,106,0.1); border-color: var(--success); color: var(--success); }
+  .prompt-text {
+    padding: 16px; font-size: 13px; line-height: 1.8; white-space: pre-wrap; word-break: break-all;
+    color: var(--text); font-family: 'SF Mono', 'Courier New', monospace;
+    max-height: 320px; overflow-y: auto;
+  }
+  .prompt-text::-webkit-scrollbar { width: 4px; }
+  .prompt-text::-webkit-scrollbar-track { background: transparent; }
+  .prompt-text::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* Syntax highlight */
+  .hl-time { color: var(--yellow); font-weight: 700; }
+  .hl-shot { color: var(--green); font-weight: 700; }
+  .hl-action { color: var(--primary-light); }
+  .hl-style { color: var(--purple); }
+  .hl-param { color: var(--blue); }
+  .hl-label { color: var(--text2); font-weight: 700; }
+  .hl-negative { color: #FF6B6B; }
+
+  /* ── Copy All Button ── */
+  .btn-copy-all {
+    width: 100%; padding: 12px; background: var(--surface2); border: 1px dashed var(--border);
+    border-radius: var(--radius-sm); color: var(--text2); font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-copy-all:hover { border-color: var(--primary); color: var(--primary); background: rgba(255,59,92,0.05); }
+
+  /* ── Tips ── */
+  .tips-card { background: rgba(37,244,238,0.04); border: 1px solid rgba(37,244,238,0.15); border-radius: var(--radius); padding: 16px; }
+  .tips-title { font-size: 12px; font-weight: 700; color: var(--green); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .tips-list { list-style: none; }
+  .tips-list li { font-size: 12px; color: var(--text2); padding: 3px 0; padding-left: 14px; position: relative; }
+  .tips-list li::before { content: '›'; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+
+  /* ── Empty state ── */
+  .empty-state { text-align: center; padding: 60px 20px; }
+  .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-text { color: var(--text3); font-size: 14px; }
+
+  /* ── Spinner ── */
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Progress bar ── */
+  .progress { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 8px; display: none; }
+  .progress-label { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+  .progress-bar { height: 4px; background: var(--surface3); border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--green)); border-radius: 4px; transition: width 0.3s; }
+
+  /* ── Scene cards (output) ── */
+  .scenes-wrapper { display: flex; flex-direction: column; gap: 12px; }
+
+  /* ── Scrollable ── */
+  .output-scroll { max-height: calc(100vh - 120px); overflow-y: auto; }
+  .output-scroll::-webkit-scrollbar { width: 4px; }
+  .output-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* ── AI Optimize ── */
+  .field-with-ai { position: relative; }
+  .btn-ai-opt {
+    position: absolute; right: 8px; top: 8px;
+    display: flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(177,79,235,0.5);
+    background: rgba(177,79,235,0.1); color: var(--purple);
+    font-size: 11px; font-weight: 700; cursor: pointer;
+    transition: all 0.2s; z-index: 2; white-space: nowrap;
+  }
+  .btn-ai-opt:hover { background: rgba(177,79,235,0.2); border-color: var(--purple); }
+  .btn-ai-opt:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-ai-opt .ai-icon { font-size: 13px; }
+  .ai-loading { display: none; }
+  .ai-loading.show { display: inline-block; }
+
+  /* optimized result panel */
+  .ai-result-panel {
+    margin-top: 8px; background: rgba(177,79,235,0.06);
+    border: 1px solid rgba(177,79,235,0.25); border-radius: var(--radius-sm);
+    overflow: hidden; display: none;
+  }
+  .ai-result-panel.show { display: block; }
+  .ai-result-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 12px; background: rgba(177,79,235,0.1);
+    border-bottom: 1px solid rgba(177,79,235,0.2);
+  }
+  .ai-result-title { font-size: 11px; font-weight: 700; color: var(--purple); display: flex; align-items: center; gap: 5px; }
+  .ai-result-actions { display: flex; gap: 6px; }
+  .btn-apply {
+    padding: 3px 10px; border-radius: 5px; border: 1px solid rgba(0,210,106,0.4);
+    background: rgba(0,210,106,0.1); color: var(--success);
+    font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-apply:hover { background: rgba(0,210,106,0.2); }
+  .btn-discard {
+    padding: 3px 10px; border-radius: 5px; border: 1px solid var(--border);
+    background: transparent; color: var(--text3);
+    font-size: 11px; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-discard:hover { color: var(--text2); }
+  .ai-result-content {
+    padding: 10px 12px; font-size: 12px; line-height: 1.75; color: var(--text);
+    white-space: pre-wrap; max-height: 200px; overflow-y: auto;
+  }
+  .ai-result-content::-webkit-scrollbar { width: 3px; }
+  .ai-result-content::-webkit-scrollbar-thumb { background: rgba(177,79,235,0.3); border-radius: 3px; }
+
+  /* dynamic chips */
+  .chip.ai-suggested {
+    background: rgba(177,79,235,0.1); border-color: rgba(177,79,235,0.4); color: var(--purple);
+    animation: chipFadeIn 0.3s ease;
+  }
+  @keyframes chipFadeIn { from { opacity:0; transform: scale(0.8); } to { opacity:1; transform: scale(1); } }
+  .chips-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; margin-top: 8px; }
+
+  /* textarea padding for button */
+  textarea.has-ai-btn { padding-right: 90px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">🎬</div>
+      <div>
+        <div class="logo-text">抖音带货 AI 视频提示词生成器</div>
+        <div class="logo-sub">支持可灵AI · 即梦AI · Kling国际版</div>
+      </div>
+    </div>
+    <div class="header-badge">带货黄金公式 <span>5段式结构</span></div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ─── 左侧：输入面板 ─── -->
+  <div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">产品基础信息</div>
+
+      <div class="form-group">
+        <label class="label-required">产品名称</label>
+        <input type="text" id="productName" placeholder="例：沫檬地板清洁液、飞达手工面包">
+      </div>
+
+      <div class="form-group">
+        <label class="label-required">产品品类</label>
+        <select id="category" onchange="updateCategoryHints()">
+          <option value="">— 请选择 —</option>
+          <optgroup label="居家清洁">
+            <option value="floor_cleaner">地板/多功能清洁液</option>
+            <option value="shoe_cleaner">鞋类清洁剂</option>
+            <option value="kitchen_cleaner">厨房清洁剂</option>
+            <option value="laundry">洗衣液/柔顺剂</option>
+          </optgroup>
+          <optgroup label="食品烘焙">
+            <option value="bread">手工面包/烘焙</option>
+            <option value="snack">零食/坚果/果干</option>
+            <option value="beverage">饮料/茶饮</option>
+            <option value="sauce">调味料/酱料</option>
+          </optgroup>
+          <optgroup label="美妆护肤">
+            <option value="skincare">护肤品</option>
+            <option value="makeup">彩妆</option>
+            <option value="haircare">发型/护发</option>
+          </optgroup>
+          <optgroup label="服装配饰">
+            <option value="clothing">服装/鞋靴</option>
+            <option value="bag">包包/配饰</option>
+          </optgroup>
+          <optgroup label="母婴宠物">
+            <option value="baby">母婴用品</option>
+            <option value="pet">宠物用品</option>
+          </optgroup>
+          <optgroup label="数码家电">
+            <option value="tech">数码/科技产品</option>
+            <option value="home_appliance">家电</option>
+          </optgroup>
+          <option value="other">其他品类</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="label-required">核心卖点（最多3个）</label>
+        <div class="field-with-ai">
+          <textarea id="sellingPoints" class="has-ai-btn" rows="3"
+            placeholder="例：&#10;1. 去污力强，3秒轻松去除顽固污渍&#10;2. 温和无刺激，婴儿友好配方&#10;3. 留香持久，清洁后留有淡淡薰衣草香"
+            oninput="onSellingPointsInput()"></textarea>
+          <button class="btn-ai-opt" id="aiOptSP" onclick="aiOptimize('sp')" title="AI优化卖点话术">
+            <span class="ai-icon">✦</span>
+            <span class="ai-opt-label">AI优化</span>
+            <span class="spinner ai-loading" id="spSpinner"></span>
+          </button>
+        </div>
+        <div class="ai-result-panel" id="spResultPanel">
+          <div class="ai-result-header">
+            <div class="ai-result-title">✦ AI优化结果 · 核心卖点</div>
+            <div class="ai-result-actions">
+              <button class="btn-apply" onclick="applyResult('sp')">应用</button>
+              <button class="btn-discard" onclick="discardResult('sp')">丢弃</button>
+            </div>
+          </div>
+          <div class="ai-result-content" id="spResultContent"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="label-required">用户痛点场景</label>
+        <div class="field-with-ai">
+          <textarea id="painPoints" class="has-ai-btn" rows="2"
+            placeholder="例：白色球鞋放久了发黄，用普通清洁剂擦完还是有污渍，颜面尽失"
+            oninput="onPainPointsInput()"></textarea>
+          <button class="btn-ai-opt" id="aiOptPain" onclick="aiOptimize('pain')" title="AI优化痛点描述">
+            <span class="ai-icon">✦</span>
+            <span class="ai-opt-label">AI优化</span>
+            <span class="spinner ai-loading" id="painSpinner"></span>
+          </button>
+        </div>
+        <div class="ai-result-panel" id="painResultPanel">
+          <div class="ai-result-header">
+            <div class="ai-result-title">✦ AI优化结果 · 痛点场景</div>
+            <div class="ai-result-actions">
+              <button class="btn-apply" onclick="applyResult('pain')">应用</button>
+              <button class="btn-discard" onclick="discardResult('pain')">丢弃</button>
+            </div>
+          </div>
+          <div class="ai-result-content" id="painResultContent"></div>
+        </div>
+        <div id="painChipsWrap">
+          <div class="chips-label" id="painChipsLabel" style="display:none">快速选择 · 点击追加到输入框</div>
+          <div class="chip-group" id="painChips"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>目标人群</label>
+        <div class="chip-group">
+          <span class="chip" onclick="toggleChip(this,'audience')">18-25岁女生</span>
+          <span class="chip" onclick="toggleChip(this,'audience')">25-35岁宝妈</span>
+          <span class="chip" onclick="toggleChip(this,'audience')">职场白领</span>
+          <span class="chip" onclick="toggleChip(this,'audience')">学生党</span>
+          <span class="chip" onclick="toggleChip(this,'audience')">居家达人</span>
+          <span class="chip" onclick="toggleChip(this,'audience')">精致男士</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">视频风格设置</div>
+
+      <div class="form-group">
+        <label>视频风格</label>
+        <div class="chip-group" id="styleChips">
+          <span class="chip active" onclick="toggleChip(this,'style')">素人真实感</span>
+          <span class="chip" onclick="toggleChip(this,'style')">小红书清新</span>
+          <span class="chip" onclick="toggleChip(this,'style')">专业测评</span>
+          <span class="chip" onclick="toggleChip(this,'style')">剧情反转</span>
+          <span class="chip" onclick="toggleChip(this,'style')">极简高端</span>
+          <span class="chip" onclick="toggleChip(this,'style')">搞笑幽默</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>色调偏好</label>
+        <div class="chip-group" id="toneChips">
+          <span class="chip active" onclick="toggleChip(this,'tone')">暖奶油调</span>
+          <span class="chip" onclick="toggleChip(this,'tone')">清冷莫兰迪</span>
+          <span class="chip" onclick="toggleChip(this,'tone')">明亮饱和</span>
+          <span class="chip" onclick="toggleChip(this,'tone')">自然无滤镜</span>
+          <span class="chip" onclick="toggleChip(this,'tone')">深邃科技蓝</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>视频时长</label>
+        <div class="range-row">
+          <input type="range" id="durationRange" min="10" max="60" step="5" value="30" oninput="document.getElementById('durationVal').textContent=this.value+'s'">
+          <div class="range-val" id="durationVal">30s</div>
+        </div>
+        <div class="input-hint" style="margin-top:4px">建议带货视频15-45秒效果最佳</div>
+      </div>
+
+      <div class="form-group">
+        <label>分镜数量</label>
+        <div class="range-row">
+          <input type="range" id="sceneCount" min="3" max="8" step="1" value="5" oninput="document.getElementById('sceneVal').textContent=this.value+'个分镜'">
+          <div class="range-val" id="sceneVal">5个分镜</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>特殊要求（可选）</label>
+        <input type="text" id="special" placeholder="例：必须包含前后对比、需要手部特写镜头">
+      </div>
+    </div>
+
+    <button class="btn-generate" id="generateBtn" onclick="generatePrompts()">
+      生成 AI 视频提示词
+    </button>
+  </div>
+
+  <!-- ─── 右侧：输出面板 ─── -->
+  <div class="output-scroll">
+    <div class="output-panel" id="outputPanel">
+      <div class="empty-state">
+        <div class="empty-icon">✨</div>
+        <div class="empty-text">填写左侧产品信息，点击生成按钮<br>即可获得专业的 AI 视频提示词</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  DATA BANK — 镜头语言词库 & 模板库
+// ═══════════════════════════════════════════════
+const CAMERA_MOVES = {
+  hook: ['Extreme close-up (ECU)', 'Close-up (CU)', 'Handheld slight shake', 'Macro lens'],
+  pain: ['Slow push-in dolly', 'Close-up (CU)', 'Tracking shot', 'Dutch angle tilt'],
+  demo: ['Over-the-shoulder (OTS)', 'Low angle CU', 'Bird\'s-eye view', 'Orbital 360'],
+  proof: ['Time-lapse', 'Split-screen before/after', 'Medium close-up (MCU)', 'Dolly out'],
+  cta: ['Pull-back dolly', 'Medium shot (MS)', 'Warm close-up', 'Zoom out bokeh']
+};
+
+const LIGHTING = {
+  '暖奶油调': 'warm cream light, soft studio lighting, 3200K warm tone, Rembrandt lighting',
+  '清冷莫兰迪': 'cool Morandi tones, diffused north-facing window light, 6000K cool white, muted pastel',
+  '明亮饱和': 'bright vivid colors, high saturation, ring light, natural daylight 5600K',
+  '自然无滤镜': 'natural ambient light, no filter style, raw authentic look, cloudy day soft light',
+  '深邃科技蓝': 'deep navy background, cool tech blue, edge lighting, low-key dramatic setup'
+};
+
+const STYLE_PARAMS = {
+  '素人真实感': {
+    zh_kl: '手持轻微抖动，低饱和暖调，无滤镜质感，素人日常风格，真实家居环境',
+    zh_jm: '((素人真实感))+手持微抖+低饱和+无滤镜+日常居家场景',
+    en: 'handheld slight shake, authentic raw footage, no filter, low saturation warm tone, everyday lifestyle'
+  },
+  '小红书清新': {
+    zh_kl: '小红书清新美学，莫兰迪色调，精致生活方式，梦幻柔焦背景，ins风格',
+    zh_jm: '((小红书清新风))+莫兰迪色调+柔焦背景+精致美学+ins风格',
+    en: 'xiaohongshu aesthetic, Morandi color palette, soft bokeh background, minimalist lifestyle, pastel tones'
+  },
+  '专业测评': {
+    zh_kl: '专业测评风格，清晰展台灯光，纯白/纯灰背景，科学严谨构图',
+    zh_jm: '((专业测评风))+白色展台+专业布光+清晰产品展示',
+    en: 'professional product review, clean white/grey background, studio lighting, scientific evaluation style'
+  },
+  '剧情反转': {
+    zh_kl: '剧情化叙事，反转喜剧风格，夸张表情特写，故事线清晰',
+    zh_jm: '((剧情反转))+戏剧化表情+故事叙事+情绪反转',
+    en: 'narrative storytelling, comedic reversal, exaggerated expression close-up, dramatic plot twist'
+  },
+  '极简高端': {
+    zh_kl: '极简高端美学，大面积留白，精准对称构图，高级哑光质感',
+    zh_jm: '((极简高端))+大留白+对称美学+哑光质感+奢品风格',
+    en: 'minimalist luxury aesthetic, generous negative space, precise symmetry, matte premium texture'
+  },
+  '搞笑幽默': {
+    zh_kl: '搞笑幽默风格，夸张肢体语言，快速剪辑节奏，pop art色调',
+    zh_jm: '((搞笑幽默))+夸张动作+快节奏+明亮色彩',
+    en: 'comedic humorous style, exaggerated body language, fast-cut editing rhythm, bright colors'
+  }
+};
+
+const NEGATIVE_PROMPTS = {
+  kl: '禁止生成：多余文字水印、模糊画面、变形手部、广告弹窗界面',
+  jm: '--negative: watermark, text overlay, blurry, deformed hands, low quality, bad anatomy',
+  kling: '--no text, watermark, blur, deformed hands, ugly, low quality, bad anatomy, extra fingers'
+};
+
+// 品类专属场景描述
+const CATEGORY_SCENES = {
+  floor_cleaner: {
+    hook: '地板上有明显的油污或脚印，镜头缓慢推向污渍特写',
+    pain: '拖了三遍还是油腻，主角抬头无奈表情',
+    demo: '直接倒一点产品，轻轻一擦，污渍瞬间消失',
+    proof: '前后对比分屏：左侧脏、右侧亮，地板反光像镜子',
+    cta: '整洁干净的家居环境全景，产品摆在显眼处'
+  },
+  shoe_cleaner: {
+    hook: '发黄的白色球鞋特写，粗糙纹理清晰可见',
+    pain: '主角指着鞋底，用普通方法擦拭效果差',
+    demo: '正确步骤：挤出泡沫、轻刷、湿巾擦净，实时展示',
+    proof: '清洁前后对比：鞋面从泛黄到雪白',
+    cta: '手持白鞋，仰角拍摄，背景是干净整洁的玄关'
+  },
+  bread: {
+    hook: '面包表面的酥脆纹理微距特写，蒸汽缓缓升起',
+    pain: '市售面包切开看剖面，气孔稀少，添加剂成分表特写',
+    demo: '掰开手工面包，内芯蓬松气孔均匀，特写手部动作',
+    proof: '烘焙过程缩时摄影：面团发酵、入炉、出炉',
+    cta: '精美摆盘，咖啡搭配，生活质感满满'
+  },
+  skincare: {
+    hook: '皮肤毛孔放大特写，干纹清晰可见',
+    pain: '对比：用了普通产品皮肤状态 vs 想要的状态',
+    demo: '涂抹产品，手指轻拍吸收，特写肤质变化',
+    proof: '第1天/第7天/第30天肤质对比',
+    cta: '镜前自拍，皮肤光泽感十足，笑容自信'
+  },
+  kitchen_cleaner: {
+    hook: '油烟机下方的油垢特写，厨房油腻场景',
+    pain: '用普通洗洁精反复擦拭，依然残留油脂',
+    demo: '喷上产品，等待10秒，轻松一抹，油垢整片脱落',
+    proof: '清洁前后对比，灶台从黑到亮',
+    cta: '整洁厨房全景，产品整齐摆放在台面'
+  }
+};
+
+const DEFAULT_SCENES = {
+  hook: '产品最吸睛的特写细节或使用状态',
+  pain: '目标用户日常遇到的问题场景',
+  demo: '正确使用产品的完整演示过程',
+  proof: '使用前后对比效果展示',
+  cta: '满意结果画面+产品露出'
+};
+
+// 品类痛点建议
+const CATEGORY_PAIN_HINTS = {
+  floor_cleaner: ['地板越拖越油腻', '清洁剂残留伤害宝宝', '气味刺鼻难忍', '拖布越洗越脏', '木地板怕划伤'],
+  shoe_cleaner: ['白鞋越洗越黄', '清洁后留下水渍', '高端球鞋不敢洗', '刷鞋太费力', '皮革材质不敢乱用'],
+  bread: ['超市面包添加剂太多', '面包口感干硬', '买了不健康很自责', '每次烤出来不蓬松', '保质期太短'],
+  skincare: ['皮肤暗沉长痘', '涂了一堆护肤品无效', '换季敏感爆皮', '妆前起皮卡粉', '毛孔粗大显老'],
+  kitchen_cleaner: ['油烟机油垢太顽固', '厨房油腻去不掉', '清洁后气味残留', '灶台缝隙藏污纳垢', '长期用腐蚀台面'],
+  laundry: ['衣服洗完有异味', '白衣服越洗越黄', '洗衣液残留刺激皮肤', '领口袖口去不掉污渍', '机洗起静电'],
+  snack: ['零食买了一堆添加剂', '吃完嘴干犯困', '控制不住越吃越多', '包装好看但东西少', '价格贵但不够分量'],
+  beverage: ['饮料喝完血糖飙升', '茶包味道淡没回甘', '咖啡睡前喝失眠', '奶茶喝多了长胖', '勾兑不是真果汁'],
+  makeup: ['底妆浮粉卡纹', '口红喝水就掉色', '眼影飞粉晕妆', '卸妆卸不干净', '敏感肌不敢乱涂'],
+  clothing: ['衣服买回来缩水', '颜色不如图片好看', '版型穿上不好看', '质感摸起来廉价', '洗了几次就起球'],
+  tech: ['充电速度太慢', '续航不到半天', '屏幕刮花太容易', '系统卡顿发热', '配件接口不兼容'],
+  baby: ['婴儿用品含荧光剂', '尿布不透气红屁股', '奶瓶加热不均匀', '玩具有异味不安全', '宝宝夜里哭闹睡不好'],
+  pet: ['猫狗掉毛清理困难', '宠物粮换了消化不良', '猫砂味道大盖不住', '宠物外出应激', '洗澡后皮肤过敏'],
+  bag: ['包包皮质容易脱色', '五金件容易生锈', '拉链卡顿用几次就坏', '背多了肩膀酸痛', '内里颜色容易蹭掉'],
+  home_appliance: ['家电清洗太麻烦', '耗电量太高', '噪音大影响睡眠', '滤芯耗材太贵', '操作复杂不会用'],
+  sauce: ['酱料太咸太甜不健康', '开盖后容易变质', '炒菜出不了餐厅味道', '瓶装不好控制用量', '香味不够浓郁']
+};
+
+// ═══════════════════════════════════════════════
+//  AI 智能优化引擎（本地规则引擎模拟）
+// ═══════════════════════════════════════════════
+
+// 卖点强化词库：把普通描述变成带货话术
+const SP_ENHANCE = {
+  // 清洁类
+  '去污': ['顽固污渍秒溶解，3秒干净看得见', '油渍、茶渍、墨水一抹即走，毫不费力'],
+  '无味': ['零刺激气味，开窗不开窗都放心', '孕妈宝宝在家也能安心使用，温和无刺激'],
+  '香': ['清洁后留香长达8小时，整个房间自然清新', '轻轻一擦，留香持久不散，比空气清新剂还好用'],
+  '快速': ['比同类产品快3倍，省时省力不费劲', '30秒搞定，上班族的清洁神器'],
+  '温和': ['pH中性配方，不伤手不伤地板，婴儿爬行区也敢用', '皮肤科实验室测试，敏感肌也能放心使用'],
+  '天然': ['植物提取成分，用完直接冲下水道零负担', '告别化学残留，孩子爬过的地方放心亲口舔'],
+  '浓缩': ['一瓶抵三瓶，实际使用成本比超市品牌低60%', '浓缩配方，稀释后用量少，省钱省空间'],
+  // 食品类
+  '新鲜': ['当天烘焙当天发货，吃到的永远是最新鲜的', '没有防腐剂，买到就是最好的状态'],
+  '手工': ['每一个都是师傅手工整形，绝不走流水线', '机器做不出这种层次感，手艺人才懂的区别'],
+  '健康': ['配料表只有3样，连名字都能念出来', '不含反式脂肪酸，给家人最放心的选择'],
+  '松软': ['蜂窝气孔均匀，咬下去像云朵一样蓬松', '冷了还是软的，放24小时口感不打折'],
+  '低糖': ['含糖量比同类减少40%，好吃也能控血糖', '甜度刚刚好，甜蜜不负担'],
+  // 美妆类
+  '保湿': ['涂上去2秒吸收，8小时后皮肤还是水润弹滑', '锁水力超强，干皮油皮都爱'],
+  '美白': ['连续使用14天，暗沉肌肤白了半个色号', '提亮不漂白，是由内而外的健康光泽'],
+  '控油': ['T区出油推迟3小时，妆容持久不脱妆', '一瓶搞定控油+清爽+哑光，学生党最爱'],
+  // 鞋类
+  '增白': ['发黄程度降低90%，一条如新', '泛黄白鞋一次清洁恢复出厂白度'],
+  '防水': ['处理后水珠直接滚落，下雨天不再慌张', '纳米级防水膜，原色不变质感在'],
+  // 通用
+  '效果': ['实测对比，效果不达预期直接退款', '买家秀比卖家秀更震撼，不信你看评论'],
+  '便宜': ['同等效果，价格只要专柜的1/5', '花小钱办大事，学生党社畜都买得起'],
+  '耐用': ['用量极省，一瓶至少够用3个月', '别人用了两次就换，我这款一直用到底'],
+};
+
+// 痛点升级话术库
+const PAIN_UPGRADE = {
+  // 情绪强化模板
+  templates: [
+    (p) => `你有没有遇到过这样的情况：${p}？明明已经很认真处理了，结果还是让人失望透顶。`,
+    (p) => `${p}——这个问题困扰了多少人！社群里每天都有人在问同样的问题。`,
+    (p) => `花了时间，花了力气，结果${p}。这种无力感，谁经历谁知道。`,
+    (p) => `${p}，越想解决越抓狂。你是不是也试过很多方法，最后都以失败告终？`,
+  ],
+  // 场景具象化词库
+  scene_words: {
+    '脏': ['用了5种清洁剂还是原地不动', '擦了半小时手都红了', '来客人临时想打扫却无能为力'],
+    '黄': ['买的时候还是纯白，现在看着就难受', '不敢穿出门就丢在柜底吃灰', '洗了反而更黄，心态崩了'],
+    '痘': ['刷脸支付都被系统说"检测到异常"', '出门必须厚厚的粉盖住', '一个好了另一个又来，轮流折磨'],
+    '贵': ['看着成分表全是水，卖那么贵凭什么', '买了一次穷半个月，只能省着用', '朋友推荐的网红款，用完效果一言难尽'],
+    '慢': ['充个电要两小时，出门只能带充电宝', '等它好了，饭都凉了', '其他家都快了，它还在原地'],
+    '臭': ['家里窗户全开也散不掉', '用完手上的味道洗了三遍还在', '邻居都以为出事了'],
+  }
+};
+
+// 关键词匹配智能推荐
+const KEYWORD_PAIN_MAP = [
+  { keywords: ['去污', '清洁', '油', '污渍', '擦', '洗', '脏'], suggestions: ['用了一整瓶还是擦不干净', '每次清洁完手都脱皮', '家里来客突击打扫太费力', '油污一遇到热水就扩散'] },
+  { keywords: ['香', '留香', '气味', '味道'], suggestions: ['空气清新剂放了十个还是掩盖不住', '香味10分钟就消散根本不持久', '气味太冲反而更难受'] },
+  { keywords: ['温和', '刺激', '安全', '宝宝', '婴儿', '孕'], suggestions: ['成分表看不懂不敢给孩子用', '用完手干裂还是有残留感', '孕期产品太少选择困难'] },
+  { keywords: ['快', '秒', '省时', '效率'], suggestions: ['每天上班累了还要花40分钟打扫', '双职工家庭根本没时间做卫生', '周末全用来收拾家了，哪有时间休息'] },
+  { keywords: ['白', '增白', '泛黄', '发黄'], suggestions: ['白色单品一旦泛黄就废了', '洗了反而越来越黄', '高价球鞋放着不敢洗'] },
+  { keywords: ['天然', '植物', '有机', '无添加'], suggestions: ['看配料表像读化学论文', '全家过敏都不知道是哪个成分', '健康意识提升了但选品更难了'] },
+  { keywords: ['保湿', '补水', '干', '水润'], suggestions: ['喝了两升水皮肤还是干', '护肤品用了十步还是卡粉', '换季脸开始脱皮紧绷'] },
+  { keywords: ['控油', '油皮', '出油', '毛孔'], suggestions: ['中午出门T区已经在发光', '定妆喷雾喷了还是花妆', '毛孔粗大涂多少粉都遮不住'] },
+  { keywords: ['松软', '蓬松', '气孔', '口感', '面包'], suggestions: ['自己烤出来的面包硬得像砖头', '买的面包一捏就瘪没有弹性', '放了一夜第二天就干硬难吃'] },
+  { keywords: ['健康', '无添加', '配料', '成分'], suggestions: ['配料表几十个字都是看不懂的化学名', '孩子爱吃但成分不放心', '健康和好吃好像永远只能选一个'] },
+  { keywords: ['便宜', '实惠', '划算', '性价比', '省钱'], suggestions: ['买贵的怕浪费买便宜的又担心质量', '一分钱一分货还是营销噱头说不准', '省钱用品踩雷的钱足够买个好的了'] },
+  { keywords: ['耐用', '持久', '长效', '耐磨'], suggestions: ['买了个把月就坏，比换手机还频繁', '保质期短买了用不完到期报废', '一次性产品用两次就失效性价比极低'] },
+];
+
+// ── 核心AI优化函数（本地引擎）──
+function aiOptimizeSP(rawText, productName, category) {
+  const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) return null;
+
+  const optimized = lines.map((line, idx) => {
+    // 去掉序号前缀
+    const clean = line.replace(/^[\d\.\s、]+/, '').trim();
+    if (!clean) return null;
+
+    // 尝试匹配增强词库
+    let enhanced = null;
+    for (const [kw, variants] of Object.entries(SP_ENHANCE)) {
+      if (clean.includes(kw)) {
+        enhanced = variants[idx % variants.length];
+        break;
+      }
+    }
+
+    if (enhanced) {
+      return `${idx + 1}. ${enhanced}`;
+    }
+
+    // 通用增强：加数字量化 + 情绪动词
+    const quantifiers = ['实测', '亲测', '实测对比', '数据说话'];
+    const emotions = ['震惊到不行', '好用到哭', '用完直接回购', '家人都抢着用'];
+    const q = quantifiers[idx % quantifiers.length];
+    const e = emotions[idx % emotions.length];
+    return `${idx + 1}. ${q}：${clean}，${e}`;
+  }).filter(Boolean);
+
+  // 加上通用收尾句
+  optimized.push(`✓ 限时特惠，下单享88折 + 赠品，库存不多`);
+
+  return optimized.join('\n');
+}
+
+function aiOptimizePain(rawText, productName, category) {
+  if (!rawText.trim()) return null;
+  const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
+  const optimized = [];
+
+  lines.forEach((line, idx) => {
+    const clean = line.replace(/^[\d\.\s、]+/, '').trim();
+    if (!clean) return;
+
+    // 选模板
+    const tmpl = PAIN_UPGRADE.templates[idx % PAIN_UPGRADE.templates.length];
+    let base = tmpl(clean);
+
+    // 场景词强化
+    for (const [kw, scenes] of Object.entries(PAIN_UPGRADE.scene_words)) {
+      if (clean.includes(kw)) {
+        base += `\n   → 很多人的真实经历：${scenes[idx % scenes.length]}`;
+        break;
+      }
+    }
+
+    optimized.push(base);
+  });
+
+  if (!optimized.length) return null;
+
+  // 拼接成视频脚本式痛点
+  return optimized.join('\n\n') +
+    `\n\n→ 视频开头建议：直接展示「${lines[0]}」的真实画面，不加任何说明，让观众瞬间代入。`;
+}
+
+// 智能推荐痛点chips（基于用户输入关键词动态匹配）
+function getSmartPainSuggestions(spText, painText, category) {
+  const combined = (spText + ' ' + painText).toLowerCase();
+  const catHints = CATEGORY_PAIN_HINTS[category] || [];
+
+  // 关键词匹配
+  const matched = new Set();
+  KEYWORD_PAIN_MAP.forEach(({ keywords, suggestions }) => {
+    if (keywords.some(kw => combined.includes(kw))) {
+      suggestions.forEach(s => matched.add(s));
+    }
+  });
+
+  // 品类默认 hints
+  catHints.forEach(h => matched.add(h));
+
+  return [...matched].slice(0, 8);
+}
+
+// ═══════════════════════════════════════════════
+//  AI 优化交互控制
+// ═══════════════════════════════════════════════
+let _aiResults = { sp: null, pain: null };
+let _debounceTimer = null;
+
+function aiOptimize(type) {
+  const productName = document.getElementById('productName').value.trim();
+  const category = document.getElementById('category').value;
+
+  if (type === 'sp') {
+    const raw = document.getElementById('sellingPoints').value.trim();
+    if (!raw) { showToast('请先输入核心卖点'); return; }
+    const btn = document.getElementById('aiOptSP');
+    const spinner = document.getElementById('spSpinner');
+    runAiAnimation(btn, spinner, () => {
+      const result = aiOptimizeSP(raw, productName, category);
+      _aiResults.sp = result;
+      showAiResult('sp', result);
+    });
+  } else {
+    const raw = document.getElementById('painPoints').value.trim();
+    if (!raw) { showToast('请先输入用户痛点'); return; }
+    const btn = document.getElementById('aiOptPain');
+    const spinner = document.getElementById('painSpinner');
+    runAiAnimation(btn, spinner, () => {
+      const result = aiOptimizePain(raw, productName, category);
+      _aiResults.pain = result;
+      showAiResult('pain', result);
+    });
+  }
+}
+
+function runAiAnimation(btn, spinner, callback) {
+  btn.disabled = true;
+  btn.querySelector('.ai-opt-label').textContent = '优化中...';
+  spinner.classList.add('show');
+  // 模拟思考时感（400-900ms随机）
+  const delay = 400 + Math.random() * 500;
+  setTimeout(() => {
+    spinner.classList.remove('show');
+    btn.querySelector('.ai-opt-label').textContent = 'AI优化';
+    btn.disabled = false;
+    callback();
+  }, delay);
+}
+
+function showAiResult(type, result) {
+  const panel = document.getElementById(type === 'sp' ? 'spResultPanel' : 'painResultPanel');
+  const content = document.getElementById(type === 'sp' ? 'spResultContent' : 'painResultContent');
+  if (!result) { showToast('内容已经很棒了，暂无优化建议'); return; }
+  content.textContent = result;
+  panel.classList.add('show');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function applyResult(type) {
+  const result = _aiResults[type];
+  if (!result) return;
+  if (type === 'sp') {
+    document.getElementById('sellingPoints').value = result;
+    onSellingPointsInput();
+  } else {
+    document.getElementById('painPoints').value = result;
+    onPainPointsInput();
+  }
+  discardResult(type);
+  showToast('已应用优化结果 ✓');
+}
+
+function discardResult(type) {
+  const panel = document.getElementById(type === 'sp' ? 'spResultPanel' : 'painResultPanel');
+  panel.classList.remove('show');
+}
+
+// ═══════════════════════════════════════════════
+//  动态 CHIPS 联动
+// ═══════════════════════════════════════════════
+function onSellingPointsInput() {
+  clearTimeout(_debounceTimer);
+  _debounceTimer = setTimeout(refreshDynamicChips, 350);
+}
+
+function onPainPointsInput() {
+  clearTimeout(_debounceTimer);
+  _debounceTimer = setTimeout(refreshDynamicChips, 350);
+}
+
+function refreshDynamicChips() {
+  const spText = document.getElementById('sellingPoints').value;
+  const painText = document.getElementById('painPoints').value;
+  const category = document.getElementById('category').value;
+
+  const suggestions = getSmartPainSuggestions(spText, painText, category);
+  renderPainChips(suggestions, painText);
+}
+
+function renderPainChips(suggestions, currentPainText) {
+  const container = document.getElementById('painChips');
+  const label = document.getElementById('painChipsLabel');
+
+  if (!suggestions.length) {
+    container.innerHTML = '';
+    label.style.display = 'none';
+    return;
+  }
+
+  label.style.display = 'block';
+  container.innerHTML = '';
+
+  suggestions.forEach(s => {
+    const chip = document.createElement('span');
+    const isAI = !Object.values(CATEGORY_PAIN_HINTS).flat().includes(s);
+    chip.className = 'chip' + (isAI ? ' ai-suggested' : '');
+    chip.textContent = s;
+    // 已在输入框中的标记为 active
+    if (currentPainText.includes(s)) chip.classList.add('active');
+    chip.onclick = function() {
+      const ta = document.getElementById('painPoints');
+      if (!ta.value.includes(s)) {
+        ta.value = (ta.value.trim() ? ta.value.trim() + '\n' : '') + s;
+        chip.classList.add('active');
+      }
+      refreshDynamicChips();
+    };
+    container.appendChild(chip);
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  CHIP TOGGLE
+// ═══════════════════════════════════════════════
+function toggleChip(el, group) {
+  const siblings = el.parentNode.querySelectorAll('.chip');
+  const singleGroups = ['style', 'tone'];
+  if (singleGroups.includes(group)) {
+    siblings.forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+  } else {
+    el.classList.toggle('active');
+  }
+}
+
+function getActiveChipsByClass(group) {
+  const allChips = document.querySelectorAll('.chip');
+  return Array.from(allChips).filter(c => {
+    const onclick = c.getAttribute('onclick') || '';
+    return onclick.includes(`'${group}'`) && c.classList.contains('active');
+  }).map(c => c.textContent.trim());
+}
+
+// ═══════════════════════════════════════════════
+//  CATEGORY HINTS（品类切换时刷新chips）
+// ═══════════════════════════════════════════════
+function updateCategoryHints() {
+  refreshDynamicChips();
+}
+
+// ═══════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════
+function showToast(msg) {
+  let toast = document.getElementById('_toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = '_toast';
+    Object.assign(toast.style, {
+      position: 'fixed', bottom: '32px', left: '50%', transform: 'translateX(-50%)',
+      background: '#2A2A2A', border: '1px solid #4A4A4A', borderRadius: '8px',
+      padding: '10px 20px', color: '#F0F0F0', fontSize: '13px', fontWeight: '600',
+      zIndex: '9999', transition: 'opacity 0.3s', pointerEvents: 'none'
+    });
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+}
+
+// ═══════════════════════════════════════════════
+//  CORE GENERATOR
+// ═══════════════════════════════════════════════
+function generatePrompts() {
+  const productName = document.getElementById('productName').value.trim();
+  const category = document.getElementById('category').value;
+  const sellingPoints = document.getElementById('sellingPoints').value.trim();
+  const painPoints = document.getElementById('painPoints').value.trim();
+  const special = document.getElementById('special').value.trim();
+  const duration = parseInt(document.getElementById('durationRange').value);
+  const sceneCount = parseInt(document.getElementById('sceneCount').value);
+
+  if (!productName) { showToast('请填写产品名称'); return; }
+  if (!sellingPoints) { showToast('请填写核心卖点'); return; }
+
+  const styles = getActiveChipsByClass('style');
+  const tones = getActiveChipsByClass('tone');
+  const audiences = getActiveChipsByClass('audience');
+  const style = styles[0] || '素人真实感';
+  const tone = tones[0] || '暖奶油调';
+
+  const timings = buildTimings(duration, sceneCount);
+  const scenes = buildScenes(category, productName, sellingPoints, painPoints, sceneCount);
+
+  const outputPanel = document.getElementById('outputPanel');
+  outputPanel.innerHTML = `
+    <div class="tool-tabs" id="toolTabs">
+      <button class="tab-btn active" onclick="switchTab('kl')">可灵AI <span class="tab-badge tab-badge-cn">中文</span></button>
+      <button class="tab-btn" onclick="switchTab('jm')">即梦AI <span class="tab-badge tab-badge-cn">中文</span></button>
+      <button class="tab-btn" onclick="switchTab('kling')">Kling 3.0 <span class="tab-badge tab-badge-en">EN</span></button>
+    </div>
+    <div id="promptsContainer"></div>
+    <button class="btn-copy-all" onclick="copyAll()">📋 一键复制全部提示词</button>
+    ${buildTipsCard(style, tone)}
+  `;
+
+  window._generatedData = { productName, category, sellingPoints, painPoints, style, tone, audiences, special, duration, sceneCount, timings, scenes };
+  renderPrompts('kl');
+}
+
+function buildTimings(duration, sceneCount) {
+  const ratios = sceneCount === 3 ? [0.15, 0.50, 0.35] :
+                 sceneCount === 4 ? [0.12, 0.35, 0.35, 0.18] :
+                 sceneCount === 5 ? [0.10, 0.25, 0.35, 0.20, 0.10] :
+                 sceneCount === 6 ? [0.08, 0.20, 0.28, 0.22, 0.12, 0.10] :
+                 [0.08, 0.18, 0.22, 0.22, 0.15, 0.08, 0.07];
+  const timings = [];
+  let cur = 0;
+  ratios.forEach((r, i) => {
+    const len = Math.round(duration * r);
+    const end = i === ratios.length - 1 ? duration : cur + len;
+    timings.push({ start: cur, end });
+    cur = end;
+  });
+  return timings;
+}
+
+const SCENE_NAMES = {
+  3: ['情绪钩子', '产品演示', '效果收尾'],
+  4: ['情绪钩子', '痛点放大', '产品演示', '效果收尾'],
+  5: ['情绪钩子', '痛点放大', '产品演示', '效果证明', '行动号召'],
+  6: ['情绪钩子', '痛点共鸣', '产品登场', '核心演示', '效果对比', '行动号召'],
+  7: ['情绪钩子', '痛点共鸣', '错误示范', '产品登场', '核心演示', '效果对比', '行动号召'],
+  8: ['情绪钩子', '痛点共鸣', '错误示范', '产品登场', '核心演示', '多场景验证', '效果对比', '行动号召']
+};
+
+const SCENE_COLORS = ['#FF3B5C','#FF7A3D','#FFD700','#00D26A','#25F4EE','#3A86FF','#B14FEB','#FF9F43'];
+
+function buildScenes(category, productName, sellingPoints, painPoints, sceneCount) {
+  const catScenes = CATEGORY_SCENES[category] || DEFAULT_SCENES;
+  const sp = sellingPoints.split('\n').filter(s => s.trim()).slice(0, 3);
+  const pp = painPoints.split('\n').filter(p => p.trim()).slice(0, 2);
+
+  const sceneTypeMap = {
+    3: ['hook', 'demo', 'cta'],
+    4: ['hook', 'pain', 'demo', 'cta'],
+    5: ['hook', 'pain', 'demo', 'proof', 'cta'],
+    6: ['hook', 'pain', 'intro', 'demo', 'proof', 'cta'],
+    7: ['hook', 'pain', 'error_demo', 'intro', 'demo', 'proof', 'cta'],
+    8: ['hook', 'pain', 'error_demo', 'intro', 'demo', 'multi_proof', 'proof', 'cta']
+  };
+
+  const types = sceneTypeMap[sceneCount] || sceneTypeMap[5];
+  return types.map(type => ({
+    type,
+    desc_zh: getSceneDesc(type, catScenes, productName, sp, pp),
+    desc_en: getSceneDescEn(type, productName, sp, pp)
+  }));
+}
+
+function getSceneDesc(type, catScenes, productName, sp, pp) {
+  const descs = {
+    hook: catScenes.hook || `${productName}最震撼的细节特写，必须在前2秒内抓住眼球`,
+    pain: pp[0] ? `场景复现：${pp[0].replace(/^[\d\.\s、→✓]+/, '').split('，')[0]}，主角神情沮丧，环境凌乱` : (catScenes.pain || '痛点场景展示，引发用户强烈共鸣'),
+    error_demo: `常规错误方法演示，结果令人失望，为下一幕产品登场做对比铺垫`,
+    intro: `${productName}产品正面展示，包装特写，品牌名称清晰入画`,
+    demo: sp[0] ? `核心演示：${sp[0].replace(/^[\d\.\s、✓→]+/, '').split('，')[0]}，${catScenes.demo || '操作过程真实自然'}` : (catScenes.demo || `${productName}使用过程完整演示`),
+    multi_proof: sp[1] ? `多场景验证：${sp[1].replace(/^[\d\.\s、✓→]+/, '').split('，')[0]}，进一步证实产品实力` : '多角度验证产品效果',
+    proof: catScenes.proof || `前后对比分屏：使用前 vs 使用后，差距一目了然`,
+    cta: catScenes.cta || `满意结果全景+产品标识露出，引导关注/购买`
+  };
+  return descs[type] || descs.demo;
+}
+
+function getSceneDescEn(type, productName, sp, pp) {
+  const cleanSP = (s) => s ? s.replace(/^[\d\.\s、✓→]+/, '').split('，')[0] : '';
+  const cleanPP = (p) => p ? p.replace(/^[\d\.\s、✓→]+/, '').split('，')[0] : '';
+  const descs = {
+    hook: `Extreme close-up of ${productName}, eye-catching detail shot, must hook viewer in first 2 seconds`,
+    pain: pp[0] ? `Problem scenario: ${cleanPP(pp[0])}, frustrated expression, messy environment` : `User pain point scenario, strong emotional resonance`,
+    error_demo: `Wrong method demonstration, disappointing results, contrast setup for product reveal`,
+    intro: `${productName} product front view, packaging close-up, brand name clearly visible`,
+    demo: sp[0] ? `Core demo: ${cleanSP(sp[0])}, natural authentic operation` : `Complete ${productName} usage demonstration`,
+    multi_proof: sp[1] ? `Multi-scene validation: ${cleanSP(sp[1])}, further proving product capability` : `Multi-angle effect validation`,
+    proof: `Before/after split-screen comparison, dramatic difference clearly visible`,
+    cta: `Satisfying result wide shot, product logo visible, encourage follow/purchase`
+  };
+  return descs[type] || descs.demo;
+}
+
+// ═══════════════════════════════════════════════
+//  PROMPT BUILDERS
+// ═══════════════════════════════════════════════
+function buildKlingPrompt(d) {
+  const { productName, style, tone, timings, scenes, sceneCount, duration, special } = d;
+  const styleP = STYLE_PARAMS[style] || STYLE_PARAMS['素人真实感'];
+  const lightingP = LIGHTING[tone] || LIGHTING['暖奶油调'];
+  const names = SCENE_NAMES[sceneCount] || SCENE_NAMES[5];
+  const cameras = ['hook', 'pain', 'demo', 'proof', 'cta'];
+
+  let blocks = scenes.map((scene, i) => {
+    const t = timings[i] || { start: i * 6, end: (i + 1) * 6 };
+    const name = names[i] || `分镜${i + 1}`;
+    const cam = CAMERA_MOVES[cameras[i % cameras.length]] || CAMERA_MOVES.demo;
+    return `【分镜${i + 1}：${name}】${t.start}s - ${t.end}s
+主体：${productName}，${scene.desc_zh}
+镜头：${cam[Math.floor(Math.random() * cam.length)]}
+光线：${lightingP.split(',')[0]}
+风格：${styleP.zh_kl}
+---`;
+  });
+
+  let prompt = blocks.join('\n\n');
+  prompt += `\n\n【全局参数】
+总时长：${duration}秒 | 分辨率：1080×1920（竖屏）| 帧率：30fps
+色调：${lightingP}
+风格基调：${styleP.zh_kl}`;
+  if (special) prompt += `\n特殊要求：${special}`;
+  prompt += `\n\n【禁止生成】${NEGATIVE_PROMPTS.kl}`;
+  return prompt;
+}
+
+function buildJimengPrompt(d) {
+  const { productName, style, tone, timings, scenes, sceneCount, duration, special } = d;
+  const styleP = STYLE_PARAMS[style] || STYLE_PARAMS['素人真实感'];
+  const lightingP = LIGHTING[tone] || LIGHTING['暖奶油调'];
+  const names = SCENE_NAMES[sceneCount] || SCENE_NAMES[5];
+
+  let blocks = scenes.map((scene, i) => {
+    const t = timings[i] || { start: i * 6, end: (i + 1) * 6 };
+    const name = names[i] || `分镜${i + 1}`;
+    return `◆ Shot ${i + 1} [${name}] ${t.start}s-${t.end}s
+${styleP.zh_jm}+${scene.desc_zh}，${lightingP.split(',')[0]}
+--Steps 30 --fps 24`;
+  });
+
+  let prompt = blocks.join('\n\n');
+  prompt += `\n\n${NEGATIVE_PROMPTS.jm}`;
+  if (special) prompt += `\n补充：${special}`;
+  return prompt;
+}
+
+function buildKlingEngPrompt(d) {
+  const { productName, style, tone, timings, scenes, sceneCount, duration, special } = d;
+  const styleP = STYLE_PARAMS[style] || STYLE_PARAMS['素人真实感'];
+  const lightingP = LIGHTING[tone] || LIGHTING['暖奶油调'];
+  const names = SCENE_NAMES[sceneCount] || SCENE_NAMES[5];
+  const cameras = ['hook', 'pain', 'demo', 'proof', 'cta'];
+
+  let shots = scenes.map((scene, i) => {
+    const t = timings[i] || { start: i * 6, end: (i + 1) * 6 };
+    const name = names[i] || `Scene ${i + 1}`;
+    const cam = CAMERA_MOVES[cameras[i % cameras.length]] || CAMERA_MOVES.demo;
+    const camShot = cam[Math.floor(Math.random() * cam.length)];
+    return `Shot ${i + 1} [${name}] ${t.start}s-${t.end}s:
+${scene.desc_en}, ${camShot}, ${lightingP.split(',')[0].trim()}, ${styleP.en}`;
+  });
+
+  let prompt = `[MULTI-SHOT SEQUENCE — ${duration}s vertical 9:16 @30fps]\n\n`;
+  prompt += shots.join('\n\n');
+  prompt += `\n\n[GLOBAL STYLE] ${styleP.en}, ${lightingP}`;
+  prompt += `\n[CAMERA STYLE] cinematic, smooth transitions, professional product videography`;
+  if (special) prompt += `\n[SPECIAL NOTE] ${special}`;
+  prompt += `\n${NEGATIVE_PROMPTS.kling}`;
+  return prompt;
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════
+let _currentTab = 'kl';
+
+function switchTab(tab) {
+  _currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    const tabs = ['kl', 'jm', 'kling'];
+    b.classList.toggle('active', tabs[i] === tab);
+  });
+  renderPrompts(tab);
+}
+
+function renderPrompts(tool) {
+  const d = window._generatedData;
+  if (!d) return;
+  const container = document.getElementById('promptsContainer');
+
+  let fullPrompt;
+  if (tool === 'kl') fullPrompt = buildKlingPrompt(d);
+  else if (tool === 'jm') fullPrompt = buildJimengPrompt(d);
+  else fullPrompt = buildKlingEngPrompt(d);
+
+  const names = SCENE_NAMES[d.sceneCount] || SCENE_NAMES[5];
+  const colors = SCENE_COLORS;
+
+  container.innerHTML = `
+    <div class="scenes-wrapper">
+      ${renderFullPromptBlock(tool, fullPrompt, d, names, colors)}
+    </div>
+  `;
+  window._currentFullPrompt = fullPrompt;
+}
+
+function renderFullPromptBlock(tool, prompt, d, names, colors) {
+  const toolNames = { kl: '可灵 AI 中文版提示词', jm: '即梦 AI 中文版提示词', kling: 'Kling 3.0 英文版 Prompt' };
+  const highlighted = highlightSyntax(prompt);
+  return `
+    <div class="prompt-block">
+      <div class="prompt-header">
+        <div class="prompt-scene-label">
+          <div class="scene-badge">
+            <span class="scene-dot" style="background:${colors[0]}"></span>
+            ${toolNames[tool]} — ${d.sceneCount}分镜 ${d.duration}s
+          </div>
+        </div>
+        <button class="btn-copy" onclick="copyText(this, 'fullPrompt')">
+          <span>复制</span>
+        </button>
+      </div>
+      <div class="prompt-text" id="fullPromptDisplay">${highlighted}</div>
+    </div>
+  `;
+}
+
+function highlightSyntax(text) {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/(\d+s\s*-\s*\d+s)/g, '<span class="hl-time">$1</span>')
+    .replace(/(【[^】]+】)/g, '<span class="hl-label">$1</span>')
+    .replace(/(Shot \d+[^\n]*)/g, '<span class="hl-shot">$1</span>')
+    .replace(/(--[\w]+\s+[\w]+)/g, '<span class="hl-param">$1</span>')
+    .replace(/(--negative:[^\n]+)/g, '<span class="hl-negative">$1</span>')
+    .replace(/(--no [^\n]+)/g, '<span class="hl-negative">$1</span>')
+    .replace(/(【禁止生成】[^\n]+)/g, '<span class="hl-negative">$1</span>')
+    .replace(/(\[\w+[^\]]*\])/g, '<span class="hl-style">$1</span>');
+}
+
+function buildTipsCard(style, tone) {
+  const tips = {
+    '素人真实感': ['前3帧必须出现痛点或爆款产品', '手部动作保持自然，避免僵硬', '真实居家环境比棚拍更有感染力'],
+    '小红书清新': ['莫兰迪色调调色统一全片', '精致道具辅助营造生活感', '字幕选用细圆体，颜色呼应主色调'],
+    '专业测评': ['固定机位+三脚架，专业稳定', '白色展台突出产品质感', '数据/参数量化展示增强可信度'],
+    '剧情反转': ['前5秒埋伏笔，中间制造误解', '反转节点要明确，不要模糊', '情绪弧线：沮丧→惊喜→满足'],
+    '极简高端': ['70%留白，产品绝对主角', '慢速运镜，3-5秒一个镜头', '背景色与产品包装形成高对比'],
+    '搞笑幽默': ['夸张反应配合音效点', '快剪节奏1-2秒一个镜头', '反差感是核心：预期 vs 实际']
+  };
+  const t = tips[style] || tips['素人真实感'];
+  return `
+    <div class="tips-card">
+      <div class="tips-title">💡 ${style} · 拍摄小技巧</div>
+      <ul class="tips-list">
+        ${t.map(tip => `<li>${tip}</li>`).join('')}
+        <li>负面提示词务必添加，过滤手指变形等问题</li>
+        <li>建议生成3-5个变体，择优使用</li>
+      </ul>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════
+//  COPY
+// ═══════════════════════════════════════════════
+function copyText(btn, id) {
+  const text = window._currentFullPrompt || '';
+  navigator.clipboard.writeText(text).then(() => {
+    const span = btn.querySelector('span');
+    span.textContent = '✓ 已复制';
+    btn.classList.add('copied');
+    setTimeout(() => { span.textContent = '复制'; btn.classList.remove('copied'); }, 2000);
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    const span = btn.querySelector('span');
+    span.textContent = '✓ 已复制';
+    setTimeout(() => { span.textContent = '复制'; }, 2000);
+  });
+}
+
+function copyAll() {
+  const d = window._generatedData;
+  if (!d) return;
+  const kl = buildKlingPrompt(d);
+  const jm = buildJimengPrompt(d);
+  const en = buildKlingEngPrompt(d);
+  const text = `========== 可灵AI版 ==========\n${kl}\n\n========== 即梦AI版 ==========\n${jm}\n\n========== Kling英文版 ==========\n${en}`;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.btn-copy-all');
+    btn.textContent = '✓ 已复制全部提示词！';
+    setTimeout(() => { btn.textContent = '📋 一键复制全部提示词'; }, 3000);
+  });
+}
+</script>
+</body>
+</html>
